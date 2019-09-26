@@ -1,0 +1,3 @@
+[submodule "curated-data"]
+	path = curated-data
+	url = https://github.com/clearlydefined/curated-data/
