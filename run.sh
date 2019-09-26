@@ -47,3 +47,6 @@ for file in curated-data/curations/**/*.yaml; do
         statFile "$file"
     fi
 done
+
+cat stat.csv | head -1 > "stat-sorted.csv"
+cat stat.csv | tail -n +2 | sort -r -k5 -n -t, >> "stat-sorted.csv"
