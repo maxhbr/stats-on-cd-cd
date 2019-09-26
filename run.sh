@@ -6,8 +6,9 @@ set -e
 
 statFile() {
     file="$1"
+    relfile="$2"
     if [[ -f "$file" ]]; then
-        >&2 echo "$file:"
+        >&2 echo "$relfile:"
         lines="$(wc -l "$file" | awk '{print $1;}')"
 
         actualContentLength="$(yq --yaml-output '.revisions' $file | wc -l)"
@@ -18,7 +19,7 @@ statFile() {
         #     # echo "$b is 0 or some other arithmetic error occurred"
         # fi
         >&2 echo "  lines=$lines, acLines=$actualContentLength, numOfRevs=$numberOfRevisions, linesPerRevision=$linesPerRevision"
-        echo "$file,$lines,$actualContentLength,$numberOfRevisions,$linesPerRevision" >> "$out"
+        echo "$relfile,$lines,$actualContentLength,$numberOfRevisions,$linesPerRevision" >> "$out"
     fi
 }
 
@@ -32,8 +33,9 @@ fi
 
 shopt -s globstar
 for file in curated-data/curations/**/*.yaml; do
+    relfile="$(realpath --relative-to="curated-data/curations/" "$file")"
 
-    if [[ "$file" == "curated-data/curations/nuget/nuget/-/PCLCrypto.yaml" ]]; then
+    if [[ "$relfile" == *"nuget/nuget/-/PCLCrypto.yaml" ]]; then
         # some files are encoded with ISO-8859, and contain special chars
         # this is not supported by yq
         # e.g.:
@@ -41,10 +43,10 @@ for file in curated-data/curations/**/*.yaml; do
         continue
     fi
 
-    if grep -q "$file" "$out"; then
-        >&2 echo "$file: already done"
+    if grep -q "$relfile" "$out"; then
+        >&2 echo "$relfile: already done"
     else
-        statFile "$file"
+        statFile "$file" "$relfile"
     fi
 done
 
