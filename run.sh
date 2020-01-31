@@ -1,7 +1,6 @@
 #!/usr/bin/env nix-shell
 #! nix-shell -i bash -p yq
 
-
 set -e
 
 statFile() {
@@ -10,16 +9,14 @@ statFile() {
     if [[ -f "$file" ]]; then
         >&2 echo "$relfile:"
         lines="$(wc -l "$file" | awk '{print $1;}')"
-
         actualContentLength="$(yq --yaml-output '.revisions' $file | wc -l)"
         numberOfRevisions="$(yq '.revisions | length' $file)"
-        linesPerRevision="$(echo $((actualContentLength / numberOfRevisions)))" || true
-        # if [ $? -ne 0 ]; then
-        #     >&2 echo "  division by zero"
-        #     # echo "$b is 0 or some other arithmetic error occurred"
-        # fi
-        >&2 echo "  lines=$lines, acLines=$actualContentLength, numOfRevs=$numberOfRevisions, linesPerRevision=$linesPerRevision"
-        echo "$relfile,$lines,$actualContentLength,$numberOfRevisions,$linesPerRevision" >> "$out"
+        >&2 echo "  lines=$lines, acLines=$actualContentLength, numOfRevs=$numberOfRevisions"
+        while read -r rev ; do
+            actualContentLengthForRevision="$(yq --yaml-output '.revisions.'"$rev" $file | wc -l)"
+            >&2 echo "   look at: $rev with $actualContentLengthForRevision lines"
+            echo "$relfile,$actualContentLengthForRevision,$actualContentLength,$lines,$rev,$numberOfRevisions"
+        done < <(yq '.revisions | to_entries[] | .key' "$file")
     fi
 }
 
@@ -28,7 +25,7 @@ statFile() {
 out="stat.csv"
 
 if [[ ! -f "$out" ]]; then
-    echo "file name,line count, actual content line count,number of revisions,lines per revision" > "$out"
+    echo "file name,length of longest curation,full length of curations,number of lines,revision,number of revisions" > "$out"
 fi
 
 shopt -s globstar
@@ -46,9 +43,9 @@ for file in curated-data/curations/**/*.yaml; do
     if grep -q "$relfile" "$out"; then
         >&2 echo "$relfile: already done"
     else
-        statFile "$file" "$relfile"
+        statFile "$file" "$relfile" | tee -a "$out"
     fi
 done
 
 cat stat.csv | head -1 > "stat-sorted.csv"
-cat stat.csv | tail -n +2 | sort -r -k5 -n -t, >> "stat-sorted.csv"
+cat stat.csv | tail -n +2 | sort -r -k2 -n -t, >> "stat-sorted.csv"
