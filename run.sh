@@ -25,27 +25,29 @@ statFile() {
 out="stat.csv"
 
 if [[ ! -f "$out" ]]; then
-    echo "file name,length of longest curation,full length of curations,number of lines,revision,number of revisions" > "$out"
+    if [[ ! -f "$out" ]]; then
+        echo "file name,length of longest curation,full length of curations,number of lines,revision,number of revisions" > "$out"
+    fi
+
+    shopt -s globstar
+    for file in curated-data/curations/**/*.yaml; do
+        relfile="$(realpath --relative-to="curated-data/curations/" "$file")"
+
+        if [[ "$relfile" == *"nuget/nuget/-/PCLCrypto.yaml" ]]; then
+            # some files are encoded with ISO-8859, and contain special chars
+            # this is not supported by yq
+            # e.g.:
+            #   curated-data/curations/nuget/nuget/-/PCLCrypto.yaml: ISO-8859 text
+            continue
+        fi
+
+        if grep -q "$relfile" "$out"; then
+            >&2 echo "$relfile: already done"
+        else
+            statFile "$file" "$relfile" | tee -a "$out"
+        fi
+    done
 fi
-
-shopt -s globstar
-for file in curated-data/curations/**/*.yaml; do
-    relfile="$(realpath --relative-to="curated-data/curations/" "$file")"
-
-    if [[ "$relfile" == *"nuget/nuget/-/PCLCrypto.yaml" ]]; then
-        # some files are encoded with ISO-8859, and contain special chars
-        # this is not supported by yq
-        # e.g.:
-        #   curated-data/curations/nuget/nuget/-/PCLCrypto.yaml: ISO-8859 text
-        continue
-    fi
-
-    if grep -q "$relfile" "$out"; then
-        >&2 echo "$relfile: already done"
-    else
-        statFile "$file" "$relfile" | tee -a "$out"
-    fi
-done
 
 cat stat.csv | head -1 > "stat-sorted.csv"
 cat stat.csv | tail -n +2 | sort -r -k2 -n -t, >> "stat-sorted.csv"
